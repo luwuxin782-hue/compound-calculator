@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compound Interest Calculator · 复利计算器</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14; --surface: #151821; --surface2: #1c2030;
+    --border: #252a3a; --accent: #f0c040; --accent2: #4af0a0;
+    --accent3: #6090ff; --text: #e8ecf5; --text2: #8892aa;
+    --text3: #555f78; --danger: #ff6060; --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 0 0 48px; }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: radial-gradient(circle at 20% 20%, rgba(240,192,64,0.04) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(74,240,160,0.04) 0%, transparent 50%);
+  }
+
+  /* ── Lang Bar ── */
+  .lang-bar {
+    position: sticky; top: 0; z-index: 200;
+    background: rgba(13,15,20,0.92); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 20px; flex-wrap: wrap;
+  }
+  .lang-bar-label { font-size: 11px; color: var(--text3); font-family: 'DM Mono',monospace; letter-spacing:1px; white-space:nowrap; }
+  .lang-chips { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; }
+  .lang-chip {
+    padding: 4px 11px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text2); cursor: pointer;
+    font-size: 12px; transition: all 0.18s; white-space: nowrap;
+  }
+  .lang-chip:hover { border-color: var(--accent); color: var(--text); }
+  .lang-chip.active { background: var(--accent); color: #0d0f14; border-color: var(--accent); font-weight: 600; }
+  .lang-chip.loading { opacity: 0.5; pointer-events: none; }
+  .lang-more-btn {
+    padding: 4px 11px; border-radius: 20px; border: 1px dashed var(--border);
+    background: none; color: var(--text3); cursor: pointer; font-size: 12px;
+    transition: all 0.18s;
+  }
+  .lang-more-btn:hover { border-color: var(--accent3); color: var(--accent3); }
+
+  /* ── More langs modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 500;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px; width: min(540px, 94vw);
+    max-height: 80vh; overflow-y: auto;
+  }
+  .modal h3 { font-size: 15px; margin-bottom: 16px; color: var(--text); }
+  .modal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); gap: 7px; }
+  .modal-lang-btn {
+    padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text2); cursor: pointer;
+    font-size: 13px; text-align: left; transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .modal-lang-btn:hover { border-color: var(--accent); color: var(--text); }
+  .modal-lang-btn.active { border-color: var(--accent); background: rgba(240,192,64,0.08); color: var(--accent); }
+  .modal-close { margin-top: 16px; width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text2); cursor: pointer; font-size: 14px; }
+  .translate-note {
+    font-size: 11px; color: var(--text3); background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px;
+    margin-bottom: 14px; line-height: 1.6;
+  }
+
+  /* ── Main ── */
+  .container { max-width: 960px; margin: 0 auto; padding: 24px 16px 0; position: relative; z-index: 1; }
+  .header { text-align: center; margin-bottom: 36px; }
+  .header-label { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
+  .header h1 { font-family:'DM Serif Display',serif; font-size:clamp(30px,6vw,52px); font-weight:400; background:linear-gradient(135deg,var(--text) 40%,var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; line-height:1.1; }
+  .header p { color:var(--text2); margin-top:10px; font-size:15px; }
+
+  .mode-toggle { display:flex; background:var(--surface); border:1px solid var(--border); border-radius:50px; padding:4px; width:fit-content; margin:0 auto 28px; gap:2px; }
+  .mode-btn { padding:9px 22px; border:none; background:transparent; color:var(--text2); border-radius:50px; cursor:pointer; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:500; transition:all 0.2s; white-space:nowrap; }
+  .mode-btn.active { background:var(--accent); color:#0d0f14; }
+
+  .layout { display:grid; grid-template-columns:340px 1fr; gap:20px; align-items:start; }
+  @media(max-width:720px){ .layout{grid-template-columns:1fr} }
+
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px; }
+  .card-title { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--text3); margin-bottom:20px; }
+
+  .field { margin-bottom:18px; }
+  .field label { display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--text2); margin-bottom:8px; font-weight:500; }
+  .field label .hint { font-size:11px; color:var(--text3); font-weight:400; }
+  .input-wrap { position:relative; display:flex; align-items:center; }
+  .input-prefix,.input-suffix { position:absolute; font-family:'DM Mono',monospace; font-size:13px; color:var(--text3); pointer-events:none; }
+  .input-prefix{left:12px} .input-suffix{right:12px}
+  input[type="number"],input[type="text"],select { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:'DM Mono',monospace; font-size:15px; padding:11px 14px; outline:none; transition:border-color 0.2s; -moz-appearance:textfield; }
+  input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none}
+  input.has-prefix{padding-left:28px} input.has-suffix{padding-right:28px}
+  input:focus,select:focus{border-color:var(--accent)} select{cursor:pointer} select option{background:var(--surface2)}
+
+  .var-section { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:18px; }
+  .var-section-title { font-size:12px; font-weight:600; color:var(--text2); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .badge { font-family:'DM Mono',monospace; font-size:10px; padding:2px 7px; border-radius:4px; background:rgba(74,240,160,0.12); color:var(--accent2); border:1px solid rgba(74,240,160,0.2); }
+  .toggle-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .toggle-label { font-size:13px; color:var(--text2); }
+  .toggle { width:40px; height:22px; background:var(--border); border-radius:11px; cursor:pointer; position:relative; transition:background 0.2s; border:none; flex-shrink:0; }
+  .toggle::after { content:''; position:absolute; width:16px; height:16px; background:#fff; border-radius:50%; top:3px; left:3px; transition:transform 0.2s; }
+  .toggle.on{background:var(--accent2)} .toggle.on::after{transform:translateX(18px)}
+
+  .schedule-table { width:100%; border-collapse:collapse; font-size:13px; font-family:'DM Mono',monospace; }
+  .schedule-table th { color:var(--text3); font-size:11px; text-align:left; padding:6px 8px; border-bottom:1px solid var(--border); font-weight:400; }
+  .schedule-table td { padding:6px 8px; }
+  .schedule-table input[type="number"]{padding:6px 10px;font-size:13px}
+  .schedule-table .del-btn { background:none; border:none; color:var(--text3); cursor:pointer; font-size:16px; padding:0 4px; transition:color 0.15s; }
+  .schedule-table .del-btn:hover{color:var(--danger)}
+  .add-row-btn { width:100%; margin-top:8px; padding:8px; background:none; border:1px dashed var(--border); border-radius:8px; color:var(--text3); cursor:pointer; font-size:13px; font-family:'DM Sans',sans-serif; transition:all 0.2s; }
+  .add-row-btn:hover{border-color:var(--accent2);color:var(--accent2)}
+
+  .calc-btn { width:100%; padding:14px; background:var(--accent); color:#0d0f14; border:none; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:600; cursor:pointer; transition:opacity 0.2s,transform 0.1s; letter-spacing:0.5px; }
+  .calc-btn:hover{opacity:0.9} .calc-btn:active{transform:scale(0.98)}
+
+  .results-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
+  .result-card { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:16px; }
+  .result-card.highlight { border-color:rgba(240,192,64,0.4); background:rgba(240,192,64,0.05); }
+  .result-card.highlight2 { border-color:rgba(255,96,96,0.3); background:rgba(255,96,96,0.04); }
+  .result-label { font-size:11px; color:var(--text3); margin-bottom:6px; font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:1px; }
+  .result-value { font-family:'DM Mono',monospace; font-size:20px; font-weight:500; color:var(--text); }
+  .result-card.highlight .result-value{color:var(--accent)} .result-card.highlight2 .result-value{color:var(--danger)}
+  .result-sub { font-size:11px; color:var(--text3); margin-top:4px; }
+
+  .chart-wrap { background:var(--surface2); border-radius:10px; border:1px solid var(--border); padding:16px; margin-bottom:16px; position:relative; height:240px; }
+  canvas{border-radius:6px}
+
+  .detail-table-wrap { overflow-x:auto; max-height:300px; overflow-y:auto; border-radius:10px; border:1px solid var(--border); }
+  .detail-table-wrap::-webkit-scrollbar{width:6px;height:6px} .detail-table-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  table.detail-table { width:100%; border-collapse:collapse; font-size:13px; font-family:'DM Mono',monospace; }
+  table.detail-table thead { position:sticky; top:0; background:var(--surface2); z-index:1; }
+  table.detail-table th { padding:10px 14px; text-align:right; color:var(--text3); font-size:11px; letter-spacing:1px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  table.detail-table th:first-child{text-align:left}
+  table.detail-table td { padding:9px 14px; text-align:right; border-bottom:1px solid rgba(37,42,58,0.5); color:var(--text2); }
+  table.detail-table td:first-child{text-align:left;color:var(--text3)}
+  table.detail-table tr:hover td{background:rgba(255,255,255,0.02)}
+  table.detail-table td.pos{color:var(--danger)} table.detail-table td.neg{color:var(--accent2)} table.detail-table td.total{color:var(--accent);font-weight:500}
+
+  .empty-state{text-align:center;padding:48px 24px;color:var(--text3)}
+  .empty-state .icon{font-size:36px;margin-bottom:12px}
+  .empty-state p{font-size:14px}
+  .divider{border:none;border-top:1px solid var(--border);margin:20px 0}
+  .section-title{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:12px}
+
+  /* translating spinner */
+  .translating-overlay {
+    display:none; position:fixed; inset:0; z-index:300;
+    background:rgba(13,15,20,0.7); backdrop-filter:blur(4px);
+    align-items:center; justify-content:center; flex-direction:column; gap:14px;
+  }
+  .translating-overlay.show{display:flex}
+  .spinner { width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite; }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .translating-text{color:var(--text2);font-size:14px}
+</style>
+</head>
+<body>
+
+<!-- Lang bar -->
+<div class="lang-bar">
+  <span class="lang-bar-label">🌐 LANG</span>
+  <div class="lang-chips" id="lang-chips"></div>
+  <button class="lang-more-btn" onclick="openModal()">+ More</button>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3>🌍 Select Language</h3>
+    <div class="translate-note">
+      Languages marked ✨ are AI-translated on demand and cached locally. Translation takes a few seconds.
+    </div>
+    <div class="modal-grid" id="modal-grid"></div>
+    <button class="modal-close" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<!-- Translating overlay -->
+<div class="translating-overlay" id="translating-overlay">
+  <div class="spinner"></div>
+  <div class="translating-text" id="translating-text">Translating…</div>
+</div>
+
+<div class="container">
+  <div class="header">
+    <div class="header-label" data-i18n="tagline">Financial Calculator</div>
+    <h1 data-i18n="title">Compound Interest Calculator</h1>
+    <p data-i18n="subtitle">Let time be your partner. Watch compounding work.</p>
+  </div>
+
+  <div class="mode-toggle">
+    <button class="mode-btn active" onclick="setMode('fixed')" id="btn-fixed" data-i18n="modeFixed">📈 Fixed Principal</button>
+    <button class="mode-btn" onclick="setMode('variable')" id="btn-variable" data-i18n="modeVariable">💰 Variable Principal</button>
+  </div>
+
+  <div class="layout">
+    <div>
+      <div class="card">
+        <div class="card-title" data-i18n="basicParams">Basic Parameters</div>
+        <div class="field">
+          <label><span data-i18n="principal">Initial Principal</span><span class="hint">Principal</span></label>
+          <div class="input-wrap">
+            <span class="input-prefix" id="currency-symbol">¥</span>
+            <input type="number" id="principal" class="has-prefix" value="100000" min="0" step="1000">
+          </div>
+        </div>
+        <div class="field">
+          <label><span data-i18n="rateLabel">Rate per Period</span><span class="hint">Rate per Period</span></label>
+          <div class="input-wrap">
+            <input type="number" id="rate" class="has-suffix" value="8" min="0" step="0.01">
+            <span class="input-suffix">%</span>
+          </div>
+        </div>
+        <div class="field">
+          <label><span data-i18n="periodsLabel">Number of Periods</span><span class="hint">Periods</span></label>
+          <div class="input-wrap">
+            <input type="number" id="periods" value="10" min="1" max="9999">
+            <span class="input-suffix" data-i18n="periodUnit">periods</span>
+          </div>
+        </div>
+
+        <div id="var-section" style="display:none">
+          <hr class="divider">
+          <div class="var-section">
+            <div class="var-section-title">
+              <span data-i18n="varTitle">Add / Withdraw Settings</span>
+              <span class="badge" data-i18n="varBadge">Variable</span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-label" data-i18n="fixedAmtLabel">Fixed amount each period</span>
+              <button class="toggle on" id="fixed-toggle" onclick="toggleFixed()"></button>
+            </div>
+            <div id="fixed-input-section">
+              <div class="field" style="margin-bottom:12px">
+                <label><span data-i18n="addAmtLabel">Add per period</span><span class="hint" data-i18n="negWithdraw">Negative = withdraw</span></label>
+                <div class="input-wrap">
+                  <span class="input-prefix" id="currency-symbol2">¥</span>
+                  <input type="number" id="addAmount" class="has-prefix" value="5000" step="100">
+                </div>
+              </div>
+              <div class="field" style="margin-bottom:0">
+                <label data-i18n="timingLabel">Timing</label>
+                <select id="addTiming">
+                  <option value="start" data-i18n="timingStart">Add at period start</option>
+                  <option value="end" selected data-i18n="timingEnd">Add at period end</option>
+                </select>
+              </div>
+            </div>
+            <div id="custom-schedule-section" style="display:none">
+              <div class="section-title" data-i18n="customTitle">Custom Schedule</div>
+              <table class="schedule-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="thPeriod">Period #</th>
+                    <th data-i18n="thAmount">Amount</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="schedule-body"></tbody>
+              </table>
+              <button class="add-row-btn" onclick="addScheduleRow()" data-i18n="addRow">＋ Add Row</button>
+            </div>
+          </div>
+        </div>
+
+        <button class="calc-btn" onclick="calculate()" data-i18n="calcBtn">Calculate</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" id="results-card">
+        <div class="card-title" data-i18n="resultsTitle">Results</div>
+        <div id="empty-state" class="empty-state">
+          <div class="icon">📊</div>
+          <p data-i18n="emptyHint">Fill in parameters and click Calculate</p>
+        </div>
+        <div id="results-content" style="display:none">
+          <div class="results-grid">
+            <div class="result-card highlight">
+              <div class="result-label" data-i18n="finalAsset">Final Value</div>
+              <div class="result-value" id="r-total">—</div>
+              <div class="result-sub" id="r-total-sub"></div>
+            </div>
+            <div class="result-card highlight2">
+              <div class="result-label" data-i18n="totalProfit">Total Profit</div>
+              <div class="result-value" id="r-profit">—</div>
+              <div class="result-sub" id="r-profit-sub"></div>
+            </div>
+            <div class="result-card">
+              <div class="result-label" data-i18n="totalInvested">Total Invested</div>
+              <div class="result-value" id="r-invested">—</div>
+            </div>
+            <div class="result-card">
+              <div class="result-label" data-i18n="totalReturn">Total Return</div>
+              <div class="result-value" id="r-xirr">—</div>
+              <div class="result-sub" id="r-xirr-sub"></div>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+          <div class="section-title" data-i18n="periodDetail">Period Detail</div>
+          <div class="detail-table-wrap">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th data-i18n="thPeriodCol">Period</th>
+                  <th data-i18n="thOpenBal">Opening Balance</th>
+                  <th data-i18n="thAddWith">Add / Withdraw</th>
+                  <th data-i18n="thInterest">Interest</th>
+                  <th data-i18n="thCloseBal">Closing Balance</th>
+                </tr>
+              </thead>
+              <tbody id="detail-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  LANGUAGE DATA
+// ═══════════════════════════════════════════
+
+// Built-in languages (no API needed)
+const BUILTIN_LANGS = {
+  en: {
+    name: 'English', flag: '🇬🇧', currency: '$',
+    tagline: 'Financial Calculator',
+    title: 'Compound Interest Calculator',
+    subtitle: 'Let time be your partner. Watch compounding work.',
+    modeFixed: '📈 Fixed Principal',
+    modeVariable: '💰 Variable Principal',
+    basicParams: 'Basic Parameters',
+    principal: 'Initial Principal',
+    rateLabel: 'Rate per Period',
+    periodsLabel: 'Number of Periods',
+    periodUnit: 'periods',
+    varTitle: 'Add / Withdraw Settings',
+    varBadge: 'Variable',
+    fixedAmtLabel: 'Fixed amount each period',
+    addAmtLabel: 'Add per period',
+    negWithdraw: 'Negative = withdraw',
+    timingLabel: 'Timing',
+    timingStart: 'Add at period start',
+    timingEnd: 'Add at period end',
+    customTitle: 'Custom Schedule',
+    thPeriod: 'Period #',
+    thAmount: 'Amount',
+    addRow: '＋ Add Row',
+    calcBtn: 'Calculate',
+    resultsTitle: 'Results',
+    emptyHint: 'Fill in parameters and click Calculate',
+    finalAsset: 'Final Value',
+    totalProfit: 'Total Profit',
+    totalInvested: 'Total Invested',
+    totalReturn: 'Total Return',
+    periodDetail: 'Period Detail',
+    thPeriodCol: 'Period',
+    thOpenBal: 'Opening Balance',
+    thAddWith: 'Add / Withdraw',
+    thInterest: 'Interest',
+    thCloseBal: 'Closing Balance',
+    growthLabel: 'Growth',
+    vsInitial: 'vs. initial principal',
+    chartInvested: 'Total Invested',
+    chartProfit: 'Compound Profit',
+    chartTotal: 'Total Assets',
+    periodLabel: 'Period',
+  },
+  zh: {
+    name: '中文', flag: '🇨🇳', currency: '¥',
+    tagline: 'Financial Calculator',
+    title: '复利计算器',
+    subtitle: '让时间做你的伙伴，看复利的力量',
+    modeFixed: '📈 固定本金复利',
+    modeVariable: '💰 变本金复利',
+    basicParams: '基本参数',
+    principal: '初始本金',
+    rateLabel: '每期收益率',
+    periodsLabel: '投资期数',
+    periodUnit: '期',
+    varTitle: '追加/提取本金设置',
+    varBadge: '变本金',
+    fixedAmtLabel: '固定金额（每期相同）',
+    addAmtLabel: '每期追加金额',
+    negWithdraw: '负数=提取',
+    timingLabel: '追加时机',
+    timingStart: '每期初追加',
+    timingEnd: '每期末追加',
+    customTitle: '自定义每期追加/提取',
+    thPeriod: '第N期',
+    thAmount: '金额（¥）',
+    addRow: '＋ 添加一行',
+    calcBtn: '计 算',
+    resultsTitle: '计算结果',
+    emptyHint: '填写参数后点击「计算」',
+    finalAsset: '最终资产',
+    totalProfit: '总收益',
+    totalInvested: '总投入本金',
+    totalReturn: '累计总收益率',
+    periodDetail: '逐期明细',
+    thPeriodCol: '期数',
+    thOpenBal: '期初本金',
+    thAddWith: '追加/提取',
+    thInterest: '利息收益',
+    thCloseBal: '期末总值',
+    growthLabel: '增长',
+    vsInitial: '相对初始本金',
+    chartInvested: '累计投入本金',
+    chartProfit: '累计复利收益',
+    chartTotal: '总资产曲线',
+    periodLabel: '期',
+  },
+  ja: {
+    name: '日本語', flag: '🇯🇵', currency: '¥',
+    tagline: 'Financial Calculator',
+    title: '複利計算機',
+    subtitle: '時間を味方にして、複利の力を実感しよう',
+    modeFixed: '📈 固定元本',
+    modeVariable: '💰 変動元本',
+    basicParams: '基本パラメータ',
+    principal: '初期元本',
+    rateLabel: '1期あたりの利率',
+    periodsLabel: '運用期数',
+    periodUnit: '期',
+    varTitle: '積立/引出し設定',
+    varBadge: '変動',
+    fixedAmtLabel: '毎期固定金額',
+    addAmtLabel: '1期あたりの積立額',
+    negWithdraw: '負数＝引き出し',
+    timingLabel: 'タイミング',
+    timingStart: '期首に積立',
+    timingEnd: '期末に積立',
+    customTitle: 'カスタムスケジュール',
+    thPeriod: '期番号',
+    thAmount: '金額',
+    addRow: '＋ 行を追加',
+    calcBtn: '計 算',
+    resultsTitle: '計算結果',
+    emptyHint: 'パラメータを入力して計算ボタンを押してください',
+    finalAsset: '最終残高',
+    totalProfit: '総利益',
+    totalInvested: '総投資額',
+    totalReturn: '累計収益率',
+    periodDetail: '期別明細',
+    thPeriodCol: '期数',
+    thOpenBal: '期初残高',
+    thAddWith: '積立/引出',
+    thInterest: '利息',
+    thCloseBal: '期末残高',
+    growthLabel: '増加',
+    vsInitial: '初期元本比',
+    chartInvested: '累計投資額',
+    chartProfit: '累計複利益',
+    chartTotal: '総資産曲線',
+    periodLabel: '期',
+  },
+  ko: {
+    name: '한국어', flag: '🇰🇷', currency: '₩',
+    tagline: 'Financial Calculator',
+    title: '복리 계산기',
+    subtitle: '시간을 내 편으로 만들어 복리의 힘을 확인하세요',
+    modeFixed: '📈 고정 원금',
+    modeVariable: '💰 변동 원금',
+    basicParams: '기본 매개변수',
+    principal: '초기 원금',
+    rateLabel: '기간별 수익률',
+    periodsLabel: '투자 기간 수',
+    periodUnit: '기',
+    varTitle: '추가/출금 설정',
+    varBadge: '변동',
+    fixedAmtLabel: '매 기간 고정 금액',
+    addAmtLabel: '기간당 추가 금액',
+    negWithdraw: '음수 = 출금',
+    timingLabel: '타이밍',
+    timingStart: '기간 시작 시 추가',
+    timingEnd: '기간 종료 시 추가',
+    customTitle: '사용자 지정 일정',
+    thPeriod: '기간 번호',
+    thAmount: '금액',
+    addRow: '＋ 행 추가',
+    calcBtn: '계 산',
+    resultsTitle: '계산 결과',
+    emptyHint: '매개변수를 입력하고 계산 버튼을 누르세요',
+    finalAsset: '최종 자산',
+    totalProfit: '총 수익',
+    totalInvested: '총 투자금',
+    totalReturn: '누적 수익률',
+    periodDetail: '기간별 내역',
+    thPeriodCol: '기간',
+    thOpenBal: '기초 잔액',
+    thAddWith: '추가/출금',
+    thInterest: '이자',
+    thCloseBal: '기말 잔액',
+    growthLabel: '성장',
+    vsInitial: '초기 원금 대비',
+    chartInvested: '누적 투자금',
+    chartProfit: '누적 복리 수익',
+    chartTotal: '총 자산 곡선',
+    periodLabel: '기',
+  },
+  es: {
+    name: 'Español', flag: '🇪🇸', currency: '€',
+    tagline: 'Calculadora Financiera',
+    title: 'Calculadora de Interés Compuesto',
+    subtitle: 'Deja que el tiempo trabaje a tu favor.',
+    modeFixed: '📈 Capital Fijo',
+    modeVariable: '💰 Capital Variable',
+    basicParams: 'Parámetros Básicos',
+    principal: 'Capital Inicial',
+    rateLabel: 'Tasa por Período',
+    periodsLabel: 'Número de Períodos',
+    periodUnit: 'períodos',
+    varTitle: 'Ajustes de Aportación/Retiro',
+    varBadge: 'Variable',
+    fixedAmtLabel: 'Monto fijo cada período',
+    addAmtLabel: 'Aportación por período',
+    negWithdraw: 'Negativo = retiro',
+    timingLabel: 'Momento',
+    timingStart: 'Al inicio del período',
+    timingEnd: 'Al final del período',
+    customTitle: 'Calendario Personalizado',
+    thPeriod: 'Período #',
+    thAmount: 'Monto',
+    addRow: '＋ Añadir Fila',
+    calcBtn: 'Calcular',
+    resultsTitle: 'Resultados',
+    emptyHint: 'Complete los parámetros y haga clic en Calcular',
+    finalAsset: 'Valor Final',
+    totalProfit: 'Ganancia Total',
+    totalInvested: 'Total Invertido',
+    totalReturn: 'Retorno Total',
+    periodDetail: 'Detalle por Período',
+    thPeriodCol: 'Período',
+    thOpenBal: 'Saldo Inicial',
+    thAddWith: 'Aportación/Retiro',
+    thInterest: 'Interés',
+    thCloseBal: 'Saldo Final',
+    growthLabel: 'Crecimiento',
+    vsInitial: 'vs. capital inicial',
+    chartInvested: 'Capital Invertido',
+    chartProfit: 'Ganancia Compuesta',
+    chartTotal: 'Activos Totales',
+    periodLabel: 'período',
+  },
+  fr: {
+    name: 'Français', flag: '🇫🇷', currency: '€',
+    tagline: 'Calculateur Financier',
+    title: 'Calculateur d\'Intérêts Composés',
+    subtitle: 'Laissez le temps travailler pour vous.',
+    modeFixed: '📈 Capital Fixe',
+    modeVariable: '💰 Capital Variable',
+    basicParams: 'Paramètres de Base',
+    principal: 'Capital Initial',
+    rateLabel: 'Taux par Période',
+    periodsLabel: 'Nombre de Périodes',
+    periodUnit: 'périodes',
+    varTitle: 'Paramètres Versement/Retrait',
+    varBadge: 'Variable',
+    fixedAmtLabel: 'Montant fixe chaque période',
+    addAmtLabel: 'Versement par période',
+    negWithdraw: 'Négatif = retrait',
+    timingLabel: 'Moment',
+    timingStart: 'Début de période',
+    timingEnd: 'Fin de période',
+    customTitle: 'Planning Personnalisé',
+    thPeriod: 'Période n°',
+    thAmount: 'Montant',
+    addRow: '＋ Ajouter une ligne',
+    calcBtn: 'Calculer',
+    resultsTitle: 'Résultats',
+    emptyHint: 'Remplissez les paramètres et cliquez sur Calculer',
+    finalAsset: 'Valeur Finale',
+    totalProfit: 'Bénéfice Total',
+    totalInvested: 'Total Investi',
+    totalReturn: 'Rendement Total',
+    periodDetail: 'Détail par Période',
+    thPeriodCol: 'Période',
+    thOpenBal: 'Solde Initial',
+    thAddWith: 'Versement/Retrait',
+    thInterest: 'Intérêts',
+    thCloseBal: 'Solde Final',
+    growthLabel: 'Croissance',
+    vsInitial: 'par rapport au capital initial',
+    chartInvested: 'Capital Investi',
+    chartProfit: 'Intérêts Composés',
+    chartTotal: 'Actifs Totaux',
+    periodLabel: 'période',
+  },
+  de: {
+    name: 'Deutsch', flag: '🇩🇪', currency: '€',
+    tagline: 'Finanzrechner',
+    title: 'Zinseszinsrechner',
+    subtitle: 'Lass die Zeit für dich arbeiten.',
+    modeFixed: '📈 Festes Kapital',
+    modeVariable: '💰 Variables Kapital',
+    basicParams: 'Grundparameter',
+    principal: 'Startkapital',
+    rateLabel: 'Zinssatz pro Periode',
+    periodsLabel: 'Anzahl der Perioden',
+    periodUnit: 'Perioden',
+    varTitle: 'Ein-/Auszahlungseinstellungen',
+    varBadge: 'Variabel',
+    fixedAmtLabel: 'Fester Betrag pro Periode',
+    addAmtLabel: 'Einzahlung pro Periode',
+    negWithdraw: 'Negativ = Auszahlung',
+    timingLabel: 'Zeitpunkt',
+    timingStart: 'Zu Periodenbeginn',
+    timingEnd: 'Am Periodenende',
+    customTitle: 'Benutzerdefinierter Zeitplan',
+    thPeriod: 'Periode Nr.',
+    thAmount: 'Betrag',
+    addRow: '＋ Zeile hinzufügen',
+    calcBtn: 'Berechnen',
+    resultsTitle: 'Ergebnisse',
+    emptyHint: 'Parameter ausfüllen und Berechnen klicken',
+    finalAsset: 'Endwert',
+    totalProfit: 'Gesamtgewinn',
+    totalInvested: 'Gesamt investiert',
+    totalReturn: 'Gesamtrendite',
+    periodDetail: 'Periodendetails',
+    thPeriodCol: 'Periode',
+    thOpenBal: 'Anfangssaldo',
+    thAddWith: 'Ein-/Auszahlung',
+    thInterest: 'Zinsen',
+    thCloseBal: 'Endsaldo',
+    growthLabel: 'Wachstum',
+    vsInitial: 'ggü. Startkapital',
+    chartInvested: 'Investiertes Kapital',
+    chartProfit: 'Zinseszins',
+    chartTotal: 'Gesamtvermögen',
+    periodLabel: 'Periode',
+  },
+  ar: {
+    name: 'العربية', flag: '🇸🇦', currency: 'ر.س', rtl: true,
+    tagline: 'حاسبة مالية',
+    title: 'حاسبة الفائدة المركبة',
+    subtitle: 'دع الوقت يعمل لصالحك وشاهد قوة الفائدة المركبة',
+    modeFixed: '📈 رأس مال ثابت',
+    modeVariable: '💰 رأس مال متغير',
+    basicParams: 'المعاملات الأساسية',
+    principal: 'رأس المال الأولي',
+    rateLabel: 'معدل الفائدة لكل فترة',
+    periodsLabel: 'عدد الفترات',
+    periodUnit: 'فترة',
+    varTitle: 'إعدادات الإيداع/السحب',
+    varBadge: 'متغير',
+    fixedAmtLabel: 'مبلغ ثابت في كل فترة',
+    addAmtLabel: 'إيداع لكل فترة',
+    negWithdraw: 'سالب = سحب',
+    timingLabel: 'التوقيت',
+    timingStart: 'في بداية الفترة',
+    timingEnd: 'في نهاية الفترة',
+    customTitle: 'جدول مخصص',
+    thPeriod: 'رقم الفترة',
+    thAmount: 'المبلغ',
+    addRow: '＋ إضافة صف',
+    calcBtn: 'احسب',
+    resultsTitle: 'النتائج',
+    emptyHint: 'أدخل المعاملات ثم اضغط احسب',
+    finalAsset: 'القيمة النهائية',
+    totalProfit: 'إجمالي الربح',
+    totalInvested: 'إجمالي الاستثمار',
+    totalReturn: 'إجمالي العائد',
+    periodDetail: 'تفاصيل الفترات',
+    thPeriodCol: 'الفترة',
+    thOpenBal: 'الرصيد الافتتاحي',
+    thAddWith: 'إيداع/سحب',
+    thInterest: 'الفائدة',
+    thCloseBal: 'الرصيد الختامي',
+    growthLabel: 'نمو',
+    vsInitial: 'مقارنة برأس المال الأولي',
+    chartInvested: 'رأس المال المستثمر',
+    chartProfit: 'أرباح مركبة',
+    chartTotal: 'إجمالي الأصول',
+    periodLabel: 'فترة',
+  },
+  pt: {
+    name: 'Português', flag: '🇧🇷', currency: 'R$',
+    tagline: 'Calculadora Financeira',
+    title: 'Calculadora de Juros Compostos',
+    subtitle: 'Deixe o tempo trabalhar por você.',
+    modeFixed: '📈 Capital Fixo',
+    modeVariable: '💰 Capital Variável',
+    basicParams: 'Parâmetros Básicos',
+    principal: 'Capital Inicial',
+    rateLabel: 'Taxa por Período',
+    periodsLabel: 'Número de Períodos',
+    periodUnit: 'períodos',
+    varTitle: 'Configurações de Aporte/Retirada',
+    varBadge: 'Variável',
+    fixedAmtLabel: 'Valor fixo por período',
+    addAmtLabel: 'Aporte por período',
+    negWithdraw: 'Negativo = retirada',
+    timingLabel: 'Momento',
+    timingStart: 'No início do período',
+    timingEnd: 'No final do período',
+    customTitle: 'Cronograma Personalizado',
+    thPeriod: 'Período nº',
+    thAmount: 'Valor',
+    addRow: '＋ Adicionar Linha',
+    calcBtn: 'Calcular',
+    resultsTitle: 'Resultados',
+    emptyHint: 'Preencha os parâmetros e clique em Calcular',
+    finalAsset: 'Valor Final',
+    totalProfit: 'Lucro Total',
+    totalInvested: 'Total Investido',
+    totalReturn: 'Retorno Total',
+    periodDetail: 'Detalhe por Período',
+    thPeriodCol: 'Período',
+    thOpenBal: 'Saldo Inicial',
+    thAddWith: 'Aporte/Retirada',
+    thInterest: 'Juros',
+    thCloseBal: 'Saldo Final',
+    growthLabel: 'Crescimento',
+    vsInitial: 'em relação ao capital inicial',
+    chartInvested: 'Capital Investido',
+    chartProfit: 'Juros Compostos',
+    chartTotal: 'Ativos Totais',
+    periodLabel: 'período',
+  },
+  hi: {
+    name: 'हिन्दी', flag: '🇮🇳', currency: '₹',
+    tagline: 'वित्तीय कैलकुलेटर',
+    title: 'चक्रवृद्धि ब्याज कैलकुलेटर',
+    subtitle: 'समय को अपना साथी बनाएं और चक्रवृद्धि की शक्ति देखें',
+    modeFixed: '📈 स्थिर मूलधन',
+    modeVariable: '💰 परिवर्तनीय मूलधन',
+    basicParams: 'बुनियादी पैरामीटर',
+    principal: 'प्रारंभिक मूलधन',
+    rateLabel: 'प्रति अवधि दर',
+    periodsLabel: 'अवधियों की संख्या',
+    periodUnit: 'अवधि',
+    varTitle: 'जमा/निकासी सेटिंग्स',
+    varBadge: 'परिवर्तनीय',
+    fixedAmtLabel: 'प्रत्येक अवधि निश्चित राशि',
+    addAmtLabel: 'प्रति अवधि जमा राशि',
+    negWithdraw: 'ऋणात्मक = निकासी',
+    timingLabel: 'समय',
+    timingStart: 'अवधि के आरंभ में',
+    timingEnd: 'अवधि के अंत में',
+    customTitle: 'कस्टम अनुसूची',
+    thPeriod: 'अवधि क्र.',
+    thAmount: 'राशि',
+    addRow: '＋ पंक्ति जोड़ें',
+    calcBtn: 'गणना करें',
+    resultsTitle: 'परिणाम',
+    emptyHint: 'पैरामीटर भरें और गणना करें बटन दबाएं',
+    finalAsset: 'अंतिम मूल्य',
+    totalProfit: 'कुल लाभ',
+    totalInvested: 'कुल निवेश',
+    totalReturn: 'कुल रिटर्न',
+    periodDetail: 'अवधिवार विवरण',
+    thPeriodCol: 'अवधि',
+    thOpenBal: 'प्रारंभिक शेष',
+    thAddWith: 'जमा/निकासी',
+    thInterest: 'ब्याज',
+    thCloseBal: 'अंतिम शेष',
+    growthLabel: 'वृद्धि',
+    vsInitial: 'प्रारंभिक मूलधन की तुलना में',
+    chartInvested: 'निवेशित पूंजी',
+    chartProfit: 'चक्रवृद्धि लाभ',
+    chartTotal: 'कुल संपत्ति',
+    periodLabel: 'अवधि',
+  },
+  ru: {
+    name: 'Русский', flag: '🇷🇺', currency: '₽',
+    tagline: 'Финансовый Калькулятор',
+    title: 'Калькулятор Сложных Процентов',
+    subtitle: 'Пусть время работает на вас.',
+    modeFixed: '📈 Фиксированный Капитал',
+    modeVariable: '💰 Переменный Капитал',
+    basicParams: 'Основные Параметры',
+    principal: 'Начальный Капитал',
+    rateLabel: 'Ставка за Период',
+    periodsLabel: 'Количество Периодов',
+    periodUnit: 'периодов',
+    varTitle: 'Настройки Пополнения/Снятия',
+    varBadge: 'Переменный',
+    fixedAmtLabel: 'Фиксированная сумма каждый период',
+    addAmtLabel: 'Пополнение за период',
+    negWithdraw: 'Отрицательное = снятие',
+    timingLabel: 'Момент',
+    timingStart: 'В начале периода',
+    timingEnd: 'В конце периода',
+    customTitle: 'Пользовательский График',
+    thPeriod: 'Период №',
+    thAmount: 'Сумма',
+    addRow: '＋ Добавить строку',
+    calcBtn: 'Рассчитать',
+    resultsTitle: 'Результаты',
+    emptyHint: 'Заполните параметры и нажмите Рассчитать',
+    finalAsset: 'Конечная Стоимость',
+    totalProfit: 'Общая Прибыль',
+    totalInvested: 'Всего Вложено',
+    totalReturn: 'Общая Доходность',
+    periodDetail: 'Детализация по Периодам',
+    thPeriodCol: 'Период',
+    thOpenBal: 'Нач. Баланс',
+    thAddWith: 'Пополнение/Снятие',
+    thInterest: 'Проценты',
+    thCloseBal: 'Кон. Баланс',
+    growthLabel: 'Рост',
+    vsInitial: 'к начальному капиталу',
+    chartInvested: 'Вложенный Капитал',
+    chartProfit: 'Сложные Проценты',
+    chartTotal: 'Общие Активы',
+    periodLabel: 'период',
+  },
+};
+
+// Extra languages for AI translation
+const EXTRA_LANGS = [
+  {code:'th', name:'ภาษาไทย', flag:'🇹🇭', currency:'฿'},
+  {code:'vi', name:'Tiếng Việt', flag:'🇻🇳', currency:'₫'},
+  {code:'id', name:'Indonesia', flag:'🇮🇩', currency:'Rp'},
+  {code:'ms', name:'Melayu', flag:'🇲🇾', currency:'RM'},
+  {code:'tr', name:'Türkçe', flag:'🇹🇷', currency:'₺'},
+  {code:'it', name:'Italiano', flag:'🇮🇹', currency:'€'},
+  {code:'nl', name:'Nederlands', flag:'🇳🇱', currency:'€'},
+  {code:'pl', name:'Polski', flag:'🇵🇱', currency:'zł'},
+  {code:'uk', name:'Українська', flag:'🇺🇦', currency:'₴'},
+  {code:'sv', name:'Svenska', flag:'🇸🇪', currency:'kr'},
+  {code:'da', name:'Dansk', flag:'🇩🇰', currency:'kr'},
+  {code:'fi', name:'Suomi', flag:'🇫🇮', currency:'€'},
+  {code:'no', name:'Norsk', flag:'🇳🇴', currency:'kr'},
+  {code:'cs', name:'Čeština', flag:'🇨🇿', currency:'Kč'},
+  {code:'ro', name:'Română', flag:'🇷🇴', currency:'lei'},
+  {code:'hu', name:'Magyar', flag:'🇭🇺', currency:'Ft'},
+  {code:'el', name:'Ελληνικά', flag:'🇬🇷', currency:'€'},
+  {code:'he', name:'עברית', flag:'🇮🇱', currency:'₪', rtl:true},
+  {code:'fa', name:'فارسی', flag:'🇮🇷', currency:'﷼', rtl:true},
+  {code:'bn', name:'বাংলা', flag:'🇧🇩', currency:'৳'},
+  {code:'ur', name:'اردو', flag:'🇵🇰', currency:'₨', rtl:true},
+  {code:'sw', name:'Kiswahili', flag:'🇰🇪', currency:'KSh'},
+  {code:'ta', name:'தமிழ்', flag:'🇱🇰', currency:'₹'},
+  {code:'te', name:'తెలుగు', flag:'🇮🇳', currency:'₹'},
+  {code:'mr', name:'मराठी', flag:'🇮🇳', currency:'₹'},
+  {code:'uk', name:'Українська', flag:'🇺🇦', currency:'₴'},
+  {code:'bg', name:'Български', flag:'🇧🇬', currency:'лв'},
+  {code:'hr', name:'Hrvatski', flag:'🇭🇷', currency:'€'},
+  {code:'sk', name:'Slovenčina', flag:'🇸🇰', currency:'€'},
+  {code:'lt', name:'Lietuvių', flag:'🇱🇹', currency:'€'},
+  {code:'lv', name:'Latviešu', flag:'🇱🇻', currency:'€'},
+  {code:'et', name:'Eesti', flag:'🇪🇪', currency:'€'},
+  {code:'ca', name:'Català', flag:'🏴', currency:'€'},
+  {code:'sr', name:'Српски', flag:'🇷🇸', currency:'РСД'},
+  {code:'zh-TW', name:'繁體中文', flag:'🇹🇼', currency:'NT$'},
+  {code:'af', name:'Afrikaans', flag:'🇿🇦', currency:'R'},
+  {code:'az', name:'Azərbaycan', flag:'🇦🇿', currency:'₼'},
+  {code:'ka', name:'ქართული', flag:'🇬🇪', currency:'₾'},
+  {code:'kk', name:'Қазақша', flag:'🇰🇿', currency:'₸'},
+  {code:'mn', name:'Монгол', flag:'🇲🇳', currency:'₮'},
+  {code:'ne', name:'नेपाली', flag:'🇳🇵', currency:'रू'},
+  {code:'si', name:'සිංහල', flag:'🇱🇰', currency:'රු'},
+  {code:'km', name:'ខ្មែរ', flag:'🇰🇭', currency:'៛'},
+  {code:'lo', name:'ລາວ', flag:'🇱🇦', currency:'₭'},
+  {code:'my', name:'မြန်မာ', flag:'🇲🇲', currency:'K'},
+  {code:'am', name:'አማርኛ', flag:'🇪🇹', currency:'Br'},
+  {code:'hy', name:'Հայերեն', flag:'🇦🇲', currency:'֏'},
+];
+
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let currentLang = 'zh';
+let mode = 'fixed';
+let isFixedAdd = true;
+let chartInstance = null;
+let scheduleRows = [];
+const translationCache = {};
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+window.onload = () => {
+  buildLangBar();
+  buildModal();
+  applyLang('zh');
+};
+
+// ═══════════════════════════════════════════
+//  LANG BAR
+// ═══════════════════════════════════════════
+const TOP_LANGS = ['zh','en','ja','ko','es','fr','de','ar','pt','hi','ru'];
+
+function buildLangBar() {
+  const chips = document.getElementById('lang-chips');
+  chips.innerHTML = '';
+  TOP_LANGS.forEach(code => {
+    const l = BUILTIN_LANGS[code];
+    const btn = document.createElement('button');
+    btn.className = 'lang-chip' + (code === currentLang ? ' active' : '');
+    btn.dataset.code = code;
+    btn.textContent = l.flag + ' ' + l.name;
+    btn.onclick = () => applyLang(code);
+    chips.appendChild(btn);
+  });
+}
+
+function buildModal() {
+  const grid = document.getElementById('modal-grid');
+  grid.innerHTML = '';
+  // builtin first
+  Object.entries(BUILTIN_LANGS).forEach(([code, l]) => {
+    addModalBtn(grid, code, l.flag, l.name, false);
+  });
+  // extra
+  EXTRA_LANGS.forEach(l => {
+    addModalBtn(grid, l.code, l.flag, l.name, true);
+  });
+}
+
+function addModalBtn(grid, code, flag, name, isAI) {
+  const btn = document.createElement('button');
+  btn.className = 'modal-lang-btn' + (code === currentLang ? ' active' : '');
+  btn.dataset.code = code;
+  btn.innerHTML = `<span>${flag}</span><span>${name}</span>${isAI ? '<span style="color:var(--accent);font-size:10px">✨</span>' : ''}`;
+  btn.onclick = () => { closeModal(); applyLang(code); };
+  grid.appendChild(btn);
+}
+
+function openModal() { document.getElementById('modal').classList.add('open'); }
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+// ═══════════════════════════════════════════
+//  APPLY LANGUAGE
+// ═══════════════════════════════════════════
+async function applyLang(code) {
+  currentLang = code;
+  updateChipActive();
+
+  let t = BUILTIN_LANGS[code];
+
+  if (!t) {
+    // Check cache
+    if (translationCache[code]) {
+      t = translationCache[code];
+    } else {
+      // AI translate
+      const extraMeta = EXTRA_LANGS.find(l => l.code === code) || {};
+      t = await aiTranslate(code, extraMeta);
+      if (!t) return; // failed
+      translationCache[code] = t;
+    }
+  }
+
+  // Apply RTL
+  document.documentElement.dir = t.rtl ? 'rtl' : 'ltr';
+  document.documentElement.lang = code;
+
+  // Apply all data-i18n
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (t[key] !== undefined) el.textContent = t[key];
+  });
+
+  // Currency symbol
+  const sym = t.currency || '$';
+  ['currency-symbol','currency-symbol2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = sym;
+  });
+
+  // Re-render chart labels if chart exists
+  if (chartInstance) calculate();
+}
+
+function updateChipActive() {
+  document.querySelectorAll('.lang-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.code === currentLang);
+  });
+  document.querySelectorAll('.modal-lang-btn').forEach(c => {
+    c.classList.toggle('active', c.dataset.code === currentLang);
+  });
+}
+
+// ═══════════════════════════════════════════
+//  AI TRANSLATE
+// ═══════════════════════════════════════════
+async function aiTranslate(code, meta) {
+  const overlay = document.getElementById('translating-overlay');
+  const txt = document.getElementById('translating-text');
+  overlay.classList.add('show');
+  txt.textContent = `Translating to ${meta.name || code}…`;
+
+  const keys = Object.keys(BUILTIN_LANGS.en);
+  const enStrings = JSON.stringify(
+    Object.fromEntries(keys.map(k => [k, BUILTIN_LANGS.en[k]])), null, 2
+  );
+
+  const prompt = `You are a professional financial app translator.
+Translate the following JSON object values into ${meta.name || code} (language code: ${code}).
+Keep keys exactly the same. Keep emoji as-is. Keep "Financial Calculator" tagline in English.
+The currency symbol for this language should be "${meta.currency || '$'}".
+Add a "currency" key with value "${meta.currency || '$'}".
+${meta.rtl ? 'Add "rtl": true to the JSON.' : ''}
+Return ONLY valid JSON, no markdown, no explanation.
+
+${enStrings}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content?.map(b => b.text || '').join('').trim();
+    const clean = raw.replace(/^```json|^```|```$/gm, '').trim();
+    const parsed = JSON.parse(clean);
+    overlay.classList.remove('show');
+    return parsed;
+  } catch(e) {
+    overlay.classList.remove('show');
+    alert('Translation failed. Please try again or choose another language.');
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════
+//  CALCULATOR LOGIC
+// ═══════════════════════════════════════════
+function t(key) {
+  const lang = BUILTIN_LANGS[currentLang] || translationCache[currentLang] || BUILTIN_LANGS.en;
+  return lang[key] || BUILTIN_LANGS.en[key] || key;
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-fixed').classList.toggle('active', m === 'fixed');
+  document.getElementById('btn-variable').classList.toggle('active', m === 'variable');
+  document.getElementById('var-section').style.display = m === 'variable' ? 'block' : 'none';
+}
+
+function toggleFixed() {
+  isFixedAdd = !isFixedAdd;
+  document.getElementById('fixed-toggle').classList.toggle('on', isFixedAdd);
+  document.getElementById('fixed-input-section').style.display = isFixedAdd ? 'block' : 'none';
+  document.getElementById('custom-schedule-section').style.display = isFixedAdd ? 'none' : 'block';
+  if (!isFixedAdd && scheduleRows.length === 0) addScheduleRow();
+}
+
+function addScheduleRow(period='', amount='') {
+  const id = Date.now();
+  scheduleRows.push(id);
+  const tbody = document.getElementById('schedule-body');
+  const tr = document.createElement('tr');
+  tr.id = 'row-' + id;
+  tr.innerHTML = `<td><input type="number" id="rp-${id}" value="${period}" min="1" placeholder="${t('thPeriod')}"></td>
+    <td><input type="number" id="ra-${id}" value="${amount}" placeholder="${t('thAmount')}" step="100"></td>
+    <td><button class="del-btn" onclick="delRow(${id})">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function delRow(id) {
+  scheduleRows = scheduleRows.filter(x => x !== id);
+  document.getElementById('row-' + id)?.remove();
+}
+
+function fmt(n) {
+  const lang = BUILTIN_LANGS[currentLang] || translationCache[currentLang] || BUILTIN_LANGS.en;
+  const sym = lang.currency || '$';
+  const abs = Math.abs(n);
+  let str;
+  if (abs >= 1e9) str = (n/1e9).toFixed(2) + 'B';
+  else if (abs >= 1e6) str = (n/1e6).toFixed(2) + 'M';
+  else if (abs >= 1e4) str = (n/1e4).toFixed(2) + 'W';
+  else str = n.toFixed(2);
+  return sym + str;
+}
+
+function fmtFull(n) {
+  const lang = BUILTIN_LANGS[currentLang] || translationCache[currentLang] || BUILTIN_LANGS.en;
+  const sym = lang.currency || '$';
+  return sym + Math.abs(n).toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function calculate() {
+  const principal = parseFloat(document.getElementById('principal').value) || 0;
+  const ratePerPeriod = parseFloat(document.getElementById('rate').value) / 100 || 0;
+  const totalCompPeriods = parseInt(document.getElementById('periods').value) || 1;
+
+  let scheduleMap = {};
+  if (mode === 'variable') {
+    if (isFixedAdd) {
+      const addAmt = parseFloat(document.getElementById('addAmount').value) || 0;
+      const timing = document.getElementById('addTiming').value;
+      for (let i = 1; i <= totalCompPeriods; i++) scheduleMap[i] = {amount:addAmt, timing};
+    } else {
+      for (const id of scheduleRows) {
+        const p = parseInt(document.getElementById('rp-'+id)?.value);
+        const a = parseFloat(document.getElementById('ra-'+id)?.value);
+        if (!isNaN(p) && !isNaN(a)) scheduleMap[p] = {amount:a, timing:'end'};
+      }
+    }
+  }
+
+  let balance = principal, totalInvested = principal;
+  let compData = [{period:0, balance, invested:principal, interest:0, added:0}];
+
+  for (let i = 1; i <= totalCompPeriods; i++) {
+    let added = 0;
+    const sched = scheduleMap[i];
+    if (sched?.timing === 'start') { added = sched.amount; balance += added; totalInvested += added; }
+    const interest = balance * ratePerPeriod;
+    balance += interest;
+    if (sched?.timing === 'end') { added = sched.amount; balance += added; totalInvested += added; }
+    compData.push({period:i, balance, invested:totalInvested, interest, added});
+  }
+
+  let rows = [];
+  for (let d = 1; d <= totalCompPeriods; d++) {
+    const startBal = compData[d-1]?.balance ?? 0;
+    const endBal = compData[d]?.balance ?? 0;
+    rows.push({period:d, startBal, added:compData[d].added, interest:compData[d].interest, endBal, invested:compData[d].invested});
+  }
+
+  const finalBal = compData[totalCompPeriods].balance;
+  const totalProfit = finalBal - totalInvested;
+  const profitPct = totalInvested > 0 ? (totalProfit/totalInvested)*100 : 0;
+  const cagr = principal > 0 ? (finalBal/principal - 1)*100 : 0;
+
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('results-content').style.display = 'block';
+
+  document.getElementById('r-total').textContent = fmt(finalBal);
+  document.getElementById('r-total-sub').textContent = fmtFull(finalBal);
+  document.getElementById('r-profit').textContent = fmt(totalProfit);
+  document.getElementById('r-profit-sub').textContent = t('growthLabel') + ' ' + profitPct.toFixed(1) + '%';
+  document.getElementById('r-invested').textContent = fmt(totalInvested);
+  document.getElementById('r-xirr').textContent = cagr.toFixed(2) + '%';
+  document.getElementById('r-xirr-sub').textContent = t('vsInitial');
+
+  renderChart(rows);
+
+  const tbody = document.getElementById('detail-body');
+  tbody.innerHTML = '';
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    const cls = r.added > 0 ? 'pos' : r.added < 0 ? 'neg' : '';
+    tr.innerHTML = `<td>${t('periodLabel')} ${r.period}</td>
+      <td>${fmtFull(r.startBal)}</td>
+      <td class="${cls}">${r.added!==0?(r.added>0?'+':'')+fmtFull(r.added):'—'}</td>
+      <td class="pos">+${fmtFull(r.interest)}</td>
+      <td class="total">${fmtFull(r.endBal)}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function renderChart(rows) {
+  const labels = rows.map(r => `${t('periodLabel')} ${r.period}`);
+  const totalVals = rows.map(r => r.endBal);
+  const investedVals = rows.map(r => r.invested);
+  const profitVals = rows.map(r => r.endBal - r.invested);
+
+  if (chartInstance) chartInstance.destroy();
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: t('chartInvested'), data: investedVals, backgroundColor:'rgba(96,144,255,0.5)', borderColor:'rgba(96,144,255,0.8)', borderWidth:1, stack:'stack', borderRadius:3 },
+        { label: t('chartProfit'), data: profitVals, backgroundColor:'rgba(255,96,96,0.5)', borderColor:'rgba(255,96,96,0.8)', borderWidth:1, stack:'stack', borderRadius:3 },
+        { label: t('chartTotal'), data: totalVals, type:'line', borderColor:'#f0c040', borderWidth:2.5, pointRadius: rows.length > 30 ? 0 : 3, pointBackgroundColor:'#f0c040', fill:false, tension:0.35, yAxisID:'y' }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins: {
+        legend: { labels: { color:'#8892aa', font:{family:'DM Mono',size:11}, boxWidth:12, padding:16 } },
+        tooltip: {
+          backgroundColor:'#1c2030', borderColor:'#252a3a', borderWidth:1,
+          titleColor:'#e8ecf5', bodyColor:'#8892aa',
+          titleFont:{family:'DM Mono',size:12}, bodyFont:{family:'DM Mono',size:12}, padding:12,
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtFull(ctx.parsed.y)}` }
+        }
+      },
+      scales: {
+        x: { stacked:true, ticks:{color:'#555f78',font:{family:'DM Mono',size:10},maxTicksLimit:12}, grid:{color:'rgba(37,42,58,0.6)'} },
+        y: { stacked:false, ticks:{color:'#555f78',font:{family:'DM Mono',size:10}, callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e4?(v/1e4).toFixed(0)+'W':v}, grid:{color:'rgba(37,42,58,0.6)'} }
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
