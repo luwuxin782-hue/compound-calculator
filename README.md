@@ -14,7 +14,7 @@
 
 免费使用，欢迎分享 ⭐
 
-
+I built a free compound interest calculator that supports 50+ languages. You can calculate fixed or variable principal, add custom contribution schedules, and see a detailed chart + period-by-period breakdown. No ads, no sign-up. Just open and use. 🔗 https://luwuxin782-hue.github.io/compound-calculator/
 
 
 
