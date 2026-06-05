@@ -1,6 +1,18 @@
 # compound-calculator
+# 复利计算器
 
+让时间做你的伙伴，看复利的力量 📈
 
+🔗 **在线使用：** https://luwuxin782-hue.github.io/compound-calculator/
+
+## 功能
+- 固定本金复利计算
+- 变本金复利（追加/提取）
+- 逐期明细表格
+- 可视化图表
+- 支持 50+ 种语言
+
+免费使用，欢迎分享 ⭐
 
 
 
